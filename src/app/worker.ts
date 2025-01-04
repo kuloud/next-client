@@ -1,46 +1,58 @@
-import { FeatureExtractionPipeline, ImageFeatureExtractionPipeline, pipeline, PipelineType, RawImage, Tensor } from "@huggingface/transformers";
+import { AutoProcessor, AutoTokenizer, CLIPTextModelWithProjection, CLIPVisionModelWithProjection, FeatureExtractionPipeline, ImageFeatureExtractionPipeline, pipeline, PipelineType, PreTrainedModel, PreTrainedTokenizer, Processor, RawImage, Tensor } from "@huggingface/transformers";
+
+class DFN {
+  private processor?: Processor;
+  private tokenizer?: PreTrainedTokenizer;
+  private textModel?: PreTrainedModel;
+  private visionModel?: PreTrainedModel;
+
+  constructor() {}
+
+  async initialize(modelName: string = 'XudongShen/DFN-public', progress_callback = null) {
+    this.processor = await AutoProcessor.from_pretrained(modelName);
+    this.tokenizer = await AutoTokenizer.from_pretrained(modelName);
+    this.textModel = await CLIPTextModelWithProjection.from_pretrained(modelName, {
+      progress_callback,
+      dtype: "fp32",
+    });
+    this.visionModel = await CLIPVisionModelWithProjection.from_pretrained(modelName, {
+      progress_callback,
+      dtype: "fp32",
+    });
+    return this;
+  }
+
+  getProcessor() {
+    return this.processor;
+  }
+
+  getTokenizer() {
+    return this.tokenizer;
+  }
+
+  getTextModel() {
+    return this.textModel;
+  }
+
+  getVisionModel() {
+    return this.visionModel;
+  }
+}
 
 // Use the Singleton pattern to enable lazy construction of the pipeline.
-class TextPipelineSingleton {
-    static task: PipelineType = 'feature-extraction';
+class PipelineSingleton {
     static model = 'XudongShen/DFN-public';
-    static instance: FeatureExtractionPipeline | null = null;
+    static instance: DFN | null = null;
 
     static async getInstance(progress_callback = null) {
-        this.instance ??= pipeline(this.task, this.model, {
-            progress_callback,
-            revision: "main",
-            dtype: "fp32",
-            model_file_name: "text_model",
-          }) as unknown as FeatureExtractionPipeline;
-        return this.instance;
-    }
-}
-class ImagePipelineSingleton {
-    static task:PipelineType = 'image-feature-extraction';
-    static model = 'XudongShen/DFN-public';
-    static instance: ImageFeatureExtractionPipeline | null = null;
-
-    static async getInstance(progress_callback = null) {
-        this.instance ??= pipeline(this.task, this.model, {
-          progress_callback,
-          revision: "main",
-          dtype: "fp32",
-          model_file_name: "vision_model",
-        }) as unknown as ImageFeatureExtractionPipeline;
+        this.instance ??= await new DFN().initialize(this.model, progress_callback);
         return this.instance;
     }
 }
 
 // Listen for messages from the main thread
 self.addEventListener('message', async (event) => {
-    const textModel = await TextPipelineSingleton.getInstance(x => {
-        self.postMessage(x);
-    });
-
-    const visionModel = await ImagePipelineSingleton.getInstance(x => {
-        self.postMessage(x);
-    });
+    const dfn = await PipelineSingleton.getInstance(x => self.postMessage({ status: 'progress', progress: x }));
 
     console.log("DFN initialized");
 
@@ -74,7 +86,7 @@ self.addEventListener('message', async (event) => {
       }
 
     const computeSimilarity = async (text: string, imageUrl: string) => {
-        if (!textModel || !visionModel) {
+        if (!dfn) {
           throw new Error("DFN not initialized. Call initialize() first.");
         }
     
@@ -82,17 +94,17 @@ self.addEventListener('message', async (event) => {
           console.log("Computing similarity...", text, imageUrl);
     
           // Get text embeddings
-          const textInputs: Tensor = textModel.tokenizer([text], {
+          const textInputs: Tensor = dfn.getTokenizer()([text], {
             padding: "max_length", truncation: true
           });
-          const textOutputs = await textModel.model(textInputs);
+          const textOutputs = await dfn.getTextModel()(textInputs);
           const textEmbedding = normalize(textOutputs.text_embeds.ort_tensor.cpuData);
     
           // Get image embeddings
 
           const image = await RawImage.read(imageUrl);
-          const imageInputs = await visionModel.processor([image]);
-          const imageOutputs = await visionModel.model(imageInputs);
+          const imageInputs = await dfn.getProcessor()([image]);
+          const imageOutputs = await dfn.getVisionModel()(imageInputs);
           const imageEmbedding = normalize( imageOutputs.image_embeds.ort_tensor.cpuData );
     
           // Compute cosine similarity
@@ -104,7 +116,7 @@ self.addEventListener('message', async (event) => {
       }
 
     // Actually perform the classification
-    const output = await computeSimilarity('a photo of a dog', 'https://cors-anywhere.herokuapp.com/https://place.dog/300/200');
+    const output = await computeSimilarity('Customizing Windows 7 Setup Please Help Solved', 'https://i.imgur.com/mXQrfNs.png');
 
     console.log("Output", output);
     // Send the output back to the main thread
