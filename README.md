@@ -1,6 +1,6 @@
 # Text-Image Similarity Analysis
 
-A web application that analyzes the semantic similarity between text and images using the DFN (Dual Feature Network) model. Built with Next.js, Transformers.js, and NextUI.
+A web application that analyzes the semantic similarity between text and images using the DFN (Data Filtering Networks) model. Built with Next.js, Transformers.js, and NextUI.
 
 ## Features
 
@@ -15,7 +15,7 @@ A web application that analyzes the semantic similarity between text and images 
 - **Framework**: Next.js 14 (App Router)
 - **UI Library**: NextUI
 - **ML Model**: Transformers.js
-- **Model**: DFN-public (CLIP-based dual feature network)
+- **Model**: DFN-public (CLIP-based Data Filtering Networks)
 - **Styling**: Tailwind CSS
 
 ## Getting Started
@@ -50,7 +50,7 @@ The application will calculate a similarity score between 0-100%, indicating how
 
 ### Model Information
 
-- Uses the DFN (Dual Feature Network) model
+- Uses the DFN (Data Filtering Networks) model
 - Processes text and images in parallel
 - Computes cosine similarity between text and image embeddings
 - Model is loaded and cached in the browser
