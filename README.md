@@ -2,6 +2,9 @@
 
 A web application that analyzes the semantic similarity between text and images using the DFN (Data Filtering Networks) model. Built with Next.js, Transformers.js, and NextUI.
 
+![loading models](https://github.com/kuloud/DFN-next-client/blob/main/screenshots/image.png)
+![result](https://github.com/kuloud/DFN-next-client/blob/main/screenshots/image1.png)
+
 ## Features
 
 - Real-time text and image URL similarity analysis
