@@ -94,11 +94,59 @@ self.addEventListener('message', async (event) => {
           console.log("Computing similarity...", text, imageUrl);
     
           // Get text embeddings
-          const textInputs = dfn.getTokenizer()([text], {
-            padding: "max_length", truncation: true
-          });
-          const textOutputs = await dfn.getTextModel()(textInputs);
-          const textEmbedding = normalize(textOutputs.text_embeds.ort_tensor.cpuData);
+          // Get tokenizer max length
+          const maxLength = dfn.getTokenizer().model_max_length; // default CLIP length is 77
+
+          // Get complete token sequence without truncation
+          const tokens = dfn.getTokenizer()([text], {
+              truncation: false,
+              padding: false
+          }).input_ids.ort_tensor.cpuData;
+
+          // Split into chunks
+          const tokenChunks = [];
+          for (let i = 0; i < tokens.length; i += maxLength) {
+              tokenChunks.push(tokens.slice(i, i + maxLength));
+          }
+
+          // Process each chunk and calculate embeddings
+          const chunkEmbeddings = [];
+          for (const chunk of tokenChunks) {
+            if (chunk.length === 0) {
+                continue;
+            }
+            const chunkBigIntArray = Array.from(chunk, BigInt)
+              // Convert tokens back to text
+              const chunkText = dfn.getTokenizer().decode(chunkBigIntArray, {
+                  skip_special_tokens: true
+              });
+
+              // Get chunk embedding
+              const textInputs = dfn.getTokenizer()([chunkText], {
+                  padding: "max_length",
+                  truncation: true
+              });
+              const textOutputs = await dfn.getTextModel()(textInputs);
+              const chunkEmbedding = normalize(textOutputs.text_embeds.ort_tensor.cpuData);
+              chunkEmbeddings.push(chunkEmbedding);
+          }
+
+          // Calculate mean embedding
+          let textEmbedding: Float32Array;
+          if (chunkEmbeddings.length === 1) {
+              textEmbedding = chunkEmbeddings[0];
+          } else {
+              // Calculate mean of all chunk embeddings
+              textEmbedding = new Float32Array(chunkEmbeddings[0].length);
+              for (const embedding of chunkEmbeddings) {
+                  for (let i = 0; i < embedding.length; i++) {
+                      textEmbedding[i] += embedding[i] / chunkEmbeddings.length;
+                  }
+              }
+              // Renormalize mean embedding if multiple chunks
+              textEmbedding = normalize(textEmbedding);
+          }
+          console.log('textEmbedding', textEmbedding)
     
           // Get image embeddings
 
