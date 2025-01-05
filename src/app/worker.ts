@@ -9,15 +9,15 @@ class DFN {
   constructor() {}
 
   async initialize(modelName: string = 'XudongShen/DFN-public', progress_callback = null) {
-    this.processor = await AutoProcessor.from_pretrained(modelName);
+    this.processor = await AutoProcessor.from_pretrained(modelName, {});
     this.tokenizer = await AutoTokenizer.from_pretrained(modelName);
     this.textModel = await CLIPTextModelWithProjection.from_pretrained(modelName, {
       progress_callback,
-      dtype: "fp32",
+      dtype: "fp16",
     });
     this.visionModel = await CLIPVisionModelWithProjection.from_pretrained(modelName, {
       progress_callback,
-      dtype: "fp32",
+      dtype: "fp16",
     });
     return this;
   }
@@ -94,7 +94,7 @@ self.addEventListener('message', async (event) => {
           console.log("Computing similarity...", text, imageUrl);
     
           // Get text embeddings
-          const textInputs: Tensor = dfn.getTokenizer()([text], {
+          const textInputs = dfn.getTokenizer()([text], {
             padding: "max_length", truncation: true
           });
           const textOutputs = await dfn.getTextModel()(textInputs);
