@@ -45,13 +45,23 @@ class PipelineSingleton {
     static instance: DFN | null = null;
 
     static async getInstance(progress_callback = null) {
-        this.instance ??= await new DFN().initialize(this.model, progress_callback);
+        if (!this.instance) {
+            self.postMessage({ status: 'initiate' });
+            this.instance = await new DFN().initialize(this.model, (progress) => {
+                // Only send progress for actual downloads
+                if (progress.total > 0) {
+                    self.postMessage({ status: 'progress', progress });
+                }
+            });
+            self.postMessage({ status: 'ready' });
+        }
         return this.instance;
     }
 }
 
 // Listen for messages from the main thread
 self.addEventListener('message', async (event) => {
+    const { text, url } = event.data;
     const dfn = await PipelineSingleton.getInstance(x => self.postMessage({ status: 'progress', progress: x }));
 
     console.log("DFN initialized");
@@ -164,7 +174,7 @@ self.addEventListener('message', async (event) => {
       }
 
     // Actually perform the classification
-    const output = await computeSimilarity('Customizing Windows 7 Setup Please Help Solved', 'https://i.imgur.com/mXQrfNs.png');
+    const output = await computeSimilarity(text, url);
 
     console.log("Output", output);
     // Send the output back to the main thread
