@@ -9,6 +9,10 @@ const nextConfig = {
     // (Optional) Export as a static site
     // See https://nextjs.org/docs/pages/building-your-application/deploying/static-exports#configuration
     output: 'export', // Feel free to modify/remove this option
+    images: {
+        unoptimized: true,  // GitHub Pages 不支持 Next.js 的图片优化
+    },
+    basePath: '/DFN-next-client',
 
     // Override the default webpack configuration
     webpack: (config) => {
